@@ -1,0 +1,83 @@
+package main
+
+// TODO: document
+// TODO: git init and push
+// TODO: deploy on homer
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
+
+var (
+	// Telegram Bot Token
+	botToken = os.Getenv("BOT_TOKEN")
+	// Telegram Chat ID
+	chatID, _ = strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
+	// URL to monitor
+	urlToCheck = os.Getenv("URL_TO_CHECK")
+	// Check interval
+	interval = 300 * time.Second
+)
+
+// sends an alert message to a Telegram chat
+func sendTelegramNotification(bot *tgbotapi.BotAPI, message string) {
+
+	msg := tgbotapi.NewMessage(chatID, message)
+
+	_, err := bot.Send(msg)
+
+	if err != nil {
+		fmt.Println("Failed to send Telegram message:", err)
+	}
+}
+
+// performs an HTTP request and sends an alert if a 4xx error is detected
+func checkWebsite(bot *tgbotapi.BotAPI) {
+	resp, err := http.Get(urlToCheck)
+	if err != nil {
+		fmt.Println("Failed to perform HTTP request:", err)
+		sendTelegramNotification(bot, fmt.Sprintf("⚠️ Request failed: %v", err))
+		return
+	}
+
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+			fmt.Println("Failed to read body from request:", err)
+		}
+	}(resp.Body)
+
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		message := fmt.Sprintf("🚨 HTTP %d Error Detected!\nURL: %s", resp.StatusCode, urlToCheck)
+		sendTelegramNotification(bot, message)
+	} else {
+		fmt.Printf("✅ %s is OK (%d)\n", urlToCheck, resp.StatusCode)
+	}
+}
+
+func main() {
+	// Initialize Telegram Bot
+	bot, err := tgbotapi.NewBotAPI(botToken)
+	if err != nil {
+		fmt.Println("Failed to initialize Telegram bot:", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("🔍 Monitoring started...")
+
+	// Testing Telegram gets message
+	sendTelegramNotification(bot, "🔍 Monitoring started...")
+
+	// Run the monitoring loop
+	for {
+		checkWebsite(bot)
+		time.Sleep(interval)
+	}
+}
