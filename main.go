@@ -11,23 +11,21 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"log"
 
+	godotenv "github.com/joho/godotenv"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 var (
-	// Telegram Bot Token
-	botToken = os.Getenv("BOT_TOKEN")
-	// Telegram Chat ID
-	chatID, _ = strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
-	// URL to monitor
-	urlToCheck = os.Getenv("URL_TO_CHECK")
 	// Check interval
 	interval = 300 * time.Second
 )
 
 // sends an alert message to a Telegram chat
 func sendTelegramNotification(bot *tgbotapi.BotAPI, message string) {
+	// Telegram Chat ID
+	var chatID, _ = strconv.ParseInt(os.Getenv("CHAT_ID"), 10, 64)
 
 	msg := tgbotapi.NewMessage(chatID, message)
 
@@ -40,6 +38,9 @@ func sendTelegramNotification(bot *tgbotapi.BotAPI, message string) {
 
 // performs an HTTP request and sends an alert if a 4xx error is detected
 func checkWebsite(bot *tgbotapi.BotAPI) {
+	// URL to monitor
+	var urlToCheck = os.Getenv("URL_TO_CHECK")
+	
 	resp, err := http.Get(urlToCheck)
 	if err != nil {
 		fmt.Println("Failed to perform HTTP request:", err)
@@ -63,7 +64,15 @@ func checkWebsite(bot *tgbotapi.BotAPI) {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file: ", err)
+	}
+
+	// Telegram Bot Token
+	var botToken = os.Getenv("BOT_TOKEN")
 	// Initialize Telegram Bot
+	fmt.Println("Connecting to bot: ", botToken)
 	bot, err := tgbotapi.NewBotAPI(botToken)
 	if err != nil {
 		fmt.Println("Failed to initialize Telegram bot:", err)
