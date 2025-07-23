@@ -21,6 +21,7 @@ FROM debian:latest
 
 # Set the working directory
 WORKDIR /
+COPY .env ./
 
 # CACerts
 RUN apt-get update && apt-get install -y ca-certificates
